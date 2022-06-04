@@ -3,13 +3,26 @@ use std::io;
 use std::io::Write;
 use std::process;
 
-use equation_solver::EquationInput;
-use equation_solver::EquationResult;
-use equation_solver::EquationResult::*;
+mod equation;
+mod equation_element;
+mod equation_error;
+mod equation_input;
+mod equation_result;
+mod equation_side;
+mod nested_term;
+mod solve_equation;
+mod term;
+
+#[cfg(test)]
+mod tests;
+
+use equation_error::EquationError::{self, *};
+use equation_input::EquationInput;
+use equation_result::EquationResult::{self, *};
 
 fn main() {
     let input = read_input();
-    let equation_result = equation_solver::solve_equation(&input);
+    let equation_result = solve_equation::solve_equation(&input);
     output_result(equation_result, input.variable_name);
 }
 
@@ -34,38 +47,60 @@ fn read_input() -> EquationInput {
     EquationInput::new(equation, variable_name)
 }
 
-fn output_result(result: Result<EquationResult, String>, variable_name: String) {
+fn output_result(result: Result<EquationResult, EquationError>, variable_name: String) {
     let output = match result {
-        Ok(result) => match result {
-            Solutions(values) if values.len() == 1 => {
-                format!("{variable_name} = {}", values[0])
-            }
-            Solutions(values) => format!(
-                "{variable_name} = {{{}}}",
-                values
-                    .iter()
-                    .map(|value| value.to_string())
-                    .collect::<Vec<String>>()
-                    .join(", ")
-            ),
-            Unsolvable => format!("{}", "The equation has no solutions".yellow()),
-            InfiniteSolutions { exceptions } => match exceptions == Vec::new() {
-                true => format!("{variable_name} = {{ℝ}}"),
-                false => format!(
-                    "{variable_name} = {{ℝ}}/{{{}}}",
-                    exceptions
-                        .iter()
-                        .map(|exception| exception.to_string())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                ),
-            },
-        },
-        Err(message) => {
-            eprintln!("{}", message.red());
+        Ok(result) => result_output(result, variable_name),
+        Err(error) => {
+            eprintln!("{}", error_output(error).red());
             process::exit(1);
         }
     };
 
     println!("{output}");
+}
+
+fn result_output(result: EquationResult, variable_name: String) -> String {
+    match result {
+        Solutions(values) if values.len() == 1 => {
+            format!("{variable_name} = {}", values[0])
+        }
+        Solutions(values) => format!(
+            "{variable_name} = {{{}}}",
+            values
+                .iter()
+                .map(|value| value.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
+        ),
+        Unsolvable => format!("{}", "The equation has no solutions".yellow()),
+        InfiniteSolutions { exceptions } => match exceptions == Vec::new() {
+            true => format!("{variable_name} = {{ℝ}}"),
+            false => format!(
+                "{variable_name} = {{ℝ}}/{{{}}}",
+                exceptions
+                    .iter()
+                    .map(|exception| exception.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+        },
+    }
+}
+
+fn error_output(error: EquationError) -> String {
+    match error {
+        InvalidElement(element) => format!("Equation contains an invalid element: {element}"),
+        TooHighDegree { max_degree } => format!(
+            "Polynomial equations with a degree greater than {max_degree} are not supported"
+        ),
+        EmptyEquation => String::from("Empty equation"),
+        EmptyVariableName => String::from("Variable name was not specified"),
+        MissingOperation => String::from("Equation is missing an operation"),
+        ParenthesisError => String::from("Equation contains invalid parenthesis"),
+        InvalidSeparator => String::from("Equation contains invalid equals sign"),
+        InvalidSeparatorAmount => String::from("An equation must contain exactly one equals sign"),
+        InvalidOperation => String::from("Equation contains invalid operation"),
+        DivisionByZero => String::from("Division by zero is undefined"),
+        ComplexNumbers => String::from("ComplexNumbers are not supported"),
+    }
 }
