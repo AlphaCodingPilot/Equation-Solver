@@ -1,7 +1,7 @@
 # Equation Solver
 A equation solver for the terminal
 
-![GitHub last commit](https://img.shields.io/github/last-commit/AlphaCodingPilot/equation-solver)
+![GitHub last commit](https://img.shields.io/github/last-commit/AlphaCodingPilot/equation-solver) ![GitHub issues](https://img.shields.io/github/issues-raw/AlphaCodingPilot/equation-solver) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/AlphaCodingPilot/equation-solver)
 
 ```
 Enter equation
