@@ -20,5 +20,5 @@ git clone https://github.com/AlphaCodingPilot/equation-solver.git
 2. Enter an equation in the terminal
 3. Specify the variable name you want to solve for after 'Solve for '
 
-##Contributing
+## Contributing
 Pull requests and issues are welcome
