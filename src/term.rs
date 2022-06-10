@@ -2,43 +2,48 @@ use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use crate::equation_element::ValueType::{self, *};
 use crate::equation_error::EquationError::{self, *};
 use crate::equation_result::EquationResult::{self, *};
+use crate::equation_side::EquationSide;
+use crate::exceptions_in_domain::ExceptionsInDomain::{self, *};
 
 const MAX_DEGREE: i32 = 2;
 
 #[derive(Clone)]
 pub struct Term {
     pub addends: HashMap<i32, f64>,
-    pub exceptions_in_domain: HashSet<OrderedFloat<f64>>,
+    pub exceptions_in_domain: ExceptionsInDomain,
 }
 
 impl Term {
     pub fn new() -> Self {
         Self {
             addends: HashMap::new(),
-            exceptions_in_domain: HashSet::new(),
+            exceptions_in_domain: Known(HashSet::new()),
         }
     }
 
     pub fn new_multiplier() -> Self {
         Self {
             addends: HashMap::from([(0, 1.0)]),
-            exceptions_in_domain: HashSet::new(),
+            exceptions_in_domain: Known(HashSet::new()),
         }
     }
 
     pub fn zeroes(&self) -> Result<EquationResult, EquationError> {
-        let mut normalized_term = self.clone();
         let lowest_exponent = self.lowest_exponent();
+        let factorized_variable = lowest_exponent > 0;
+        let mut normalized_term = self.clone();
         normalized_term.increase_exponents(-lowest_exponent);
 
         let degree = match normalized_term.degree() {
             None => {
-                let mut exceptions = self
-                    .exceptions_in_domain
-                    .iter()
-                    .collect::<Vec<&OrderedFloat<f64>>>();
+                let exceptions = self.exceptions_in_domain.unwrap_or(TooHighDegree {
+                    max_degree: MAX_DEGREE,
+                })?;
+                let mut exceptions = exceptions.iter().collect::<Vec<&OrderedFloat<f64>>>();
+
                 exceptions.sort();
                 let exceptions = exceptions
                     .iter()
@@ -49,9 +54,7 @@ impl Term {
             }
             Some(0) => {
                 return Ok(
-                    match lowest_exponent > 0
-                        && !self.exceptions_in_domain.contains(&OrderedFloat(0.0))
-                    {
+                    match factorized_variable && self.exceptions_in_domain.zero_is_valid() {
                         true => Solutions(vec![0.0]),
                         false => Unsolvable,
                     },
@@ -66,8 +69,12 @@ impl Term {
             });
         }
 
+        let exceptions_in_domain = self.exceptions_in_domain.unwrap_or(TooHighDegree {
+            max_degree: MAX_DEGREE,
+        })?;
+
         let mut solutions = Vec::new();
-        if lowest_exponent > 0 && !self.exceptions_in_domain.contains(&OrderedFloat(0.0)) {
+        if factorized_variable && !exceptions_in_domain.contains(&OrderedFloat(0.0)) {
             solutions.push(0.0);
         }
 
@@ -75,7 +82,7 @@ impl Term {
             .roots()?
             .iter()
             .map(|value| OrderedFloat(*value))
-            .filter(|value| !self.exceptions_in_domain.contains(value))
+            .filter(|value| !exceptions_in_domain.contains(value))
             .collect::<Vec<OrderedFloat<f64>>>();
 
         roots.sort();
@@ -105,16 +112,39 @@ impl Term {
         ])
     }
 
-    pub fn multiply_term(&mut self, other: &Term) {
-        let mut addends = HashMap::new();
-        for (exponent, coefficient) in self.addends.iter() {
-            for (other_exponent, other_coefficient) in other.addends.iter() {
-                *addends.entry(exponent + other_exponent).or_insert(0.0) +=
-                    coefficient * other_coefficient;
+    pub fn multiply_value(&mut self, value: &ValueType) {
+        match value {
+            Constant(constant) => self.multiply_constant(constant),
+            Variable => self.increase_exponents(1),
+        }
+    }
+
+    pub fn divide_value(&mut self, value: &ValueType) -> Result<(), EquationError> {
+        match value {
+            Constant(constant) => self.divide_constant(constant)?,
+            Variable => {
+                self.increase_exponents(-1);
+                self.exceptions_in_domain.insert_zero();
             }
         }
+        Ok(())
+    }
 
-        self.addends = addends;
+    pub fn multiply_constant(&mut self, constant: &f64) {
+        for (_, coefficient) in self.addends.iter_mut() {
+            *coefficient *= constant;
+        }
+    }
+
+    pub fn divide_constant(&mut self, constant: &f64) -> Result<(), EquationError> {
+        if *constant == 0.0 {
+            return Err(DivisionByZero);
+        }
+
+        for (_, coefficient) in self.addends.iter_mut() {
+            *coefficient /= constant;
+        }
+        Ok(())
     }
 
     pub fn increase_exponents(&mut self, power: i32) {
@@ -127,19 +157,68 @@ impl Term {
         self.addends = new_addends;
     }
 
+    pub fn multiply_term(&mut self, other: &Term) {
+        let mut addends = HashMap::new();
+        for (exponent, coefficient) in self.addends.iter() {
+            for (other_exponent, other_coefficient) in other.addends.iter() {
+                *addends.entry(exponent + other_exponent).or_insert(0.0) +=
+                    coefficient * other_coefficient;
+            }
+        }
+
+        self.addends = addends;
+    }
+
+    pub fn divide_term(
+        &mut self,
+        other: &Term,
+        nested_term: &mut Term,
+        other_equation_side: &mut EquationSide,
+    ) -> Result<(), EquationError> {
+        self.add_exceptions_in_domain_of_divisor(other)?;
+        let addends = other
+            .addends
+            .iter()
+            .filter(|(_, coefficient)| **coefficient != 0.0)
+            .collect::<Vec<(&i32, &f64)>>();
+        if addends.len() == 1 {
+            let (exponent, coefficient) = addends[0];
+            self.increase_exponents(-exponent);
+            self.divide_constant(coefficient).unwrap();
+            return Ok(());
+        }
+        nested_term.multiply_term(other);
+        other_equation_side.multiplier.multiply_term(other);
+        Ok(())
+    }
+
     pub fn add_exceptions_in_domain_of_divisor(
         &mut self,
         divisor: &Term,
     ) -> Result<(), EquationError> {
-        let exceptions_in_domain = match divisor.zeroes()? {
-            Solutions(values) => values.into_iter().map(OrderedFloat).collect(),
-            Unsolvable => HashSet::new(),
-            InfiniteSolutions { .. } => return Err(DivisionByZero),
-        };
+        match &mut self.exceptions_in_domain {
+            Known(exceptions) => {
+                let exceptions_in_domain = match divisor.zeroes() {
+                    Ok(Solutions(values)) => values.into_iter().map(OrderedFloat).collect(),
+                    Ok(Unsolvable) => HashSet::new(),
+                    Ok(InfiniteSolutions { .. }) => return Err(DivisionByZero),
+                    Err(TooHighDegree { .. }) => {
+                        let zero_is_valid = !exceptions.contains(&OrderedFloat(0.0))
+                            && !divisor.zero_is_a_solution();
+                        self.exceptions_in_domain = Unknown { zero_is_valid };
+                        return Ok(());
+                    }
+                    Err(error) => return Err(error),
+                };
 
-        self.exceptions_in_domain
-            .extend(exceptions_in_domain.iter());
-
+                exceptions.extend(exceptions_in_domain.iter());
+            }
+            Unknown { zero_is_valid } => {
+                if divisor.zero_is_a_solution() {
+                    *zero_is_valid = false;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -169,5 +248,15 @@ impl Term {
             }
         }
         lowest_degree.unwrap_or_default()
+    }
+
+    pub fn zero_is_a_solution(&self) -> bool {
+        self.lowest_exponent() > 0
+    }
+}
+
+impl PartialEq for Term {
+    fn eq(&self, other: &Self) -> bool {
+        self.addends == other.addends
     }
 }

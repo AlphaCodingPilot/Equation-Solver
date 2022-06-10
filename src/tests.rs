@@ -1,7 +1,7 @@
 use crate::equation_error::EquationError::*;
-use crate::equation_input::EquationInput;
 use crate::equation_result::EquationResult::*;
 use crate::solve_equation;
+use crate::token_stream::EquationInput;
 
 #[test]
 fn empty_input() {
@@ -55,7 +55,7 @@ fn infinite_solutions() {
 
 #[test]
 fn infinite_solutions_with_one_exception() {
-    let input = EquationInput::new(String::from("1/x = 1/x"), String::from("x"));
+    let input = EquationInput::new(String::from("x = 1/(1/x)"), String::from("x"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(InfiniteSolutions {
@@ -66,11 +66,20 @@ fn infinite_solutions_with_one_exception() {
 
 #[test]
 fn different_variable_name() {
-    let input = EquationInput::new(String::from("2*unknown + 4 = 6"), String::from("unknown"));
+    let input = EquationInput::new(String::from("2unknown + 4 = 6"), String::from("unknown"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![1.0]))
     );
+}
+
+#[test]
+fn multiplication() {
+    let input = EquationInput::new(String::from("2x(2+3)(5-4) = 2(20+5)"), String::from("x"));
+    assert_eq!(
+        solve_equation::solve_equation(&input),
+        Ok(Solutions(vec![5.0]))
+    )
 }
 
 #[test]
@@ -93,7 +102,7 @@ fn invalid_equation() {
 
 #[test]
 fn quadratic_equation() {
-    let input = EquationInput::new(String::from("3*x*x + 6*x = 9"), String::from("x"));
+    let input = EquationInput::new(String::from("3x*x + 6x = 9"), String::from("x"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![1.0, -3.0]))
@@ -102,7 +111,7 @@ fn quadratic_equation() {
 
 #[test]
 fn factorized_polynomial() {
-    let input = EquationInput::new(String::from("2*x*x = 6*x"), String::from("x"));
+    let input = EquationInput::new(String::from("2x*x = 6x"), String::from("x"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![0.0, 3.0]))
@@ -111,7 +120,7 @@ fn factorized_polynomial() {
 
 #[test]
 fn factorized_polynomial_with_one_solution() {
-    let input = EquationInput::new(String::from("2*x*x = 0"), String::from("x"));
+    let input = EquationInput::new(String::from("2x*x = 0"), String::from("x"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![0.0]))
@@ -129,10 +138,7 @@ fn fractions() {
 
 #[test]
 fn subtraction_of_products() {
-    let input = EquationInput::new(
-        String::from("5 * x - 4 * x - 3 = - x + 5"),
-        String::from("x"),
-    );
+    let input = EquationInput::new(String::from("5x - 4x - 3 = - x + 5"), String::from("x"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![4.0]))
@@ -150,7 +156,7 @@ fn order_of_operations() {
 
 #[test]
 fn order_of_operations_with_parenthesis() {
-    let input = EquationInput::new(String::from("x * (1 + 2) = 9"), String::from("x"));
+    let input = EquationInput::new(String::from("x(1 + 2) = 9"), String::from("x"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![3.0]))
@@ -160,7 +166,7 @@ fn order_of_operations_with_parenthesis() {
 #[test]
 fn domain_of_division() {
     let input = EquationInput::new(
-        String::from("1/((x-1)*(x+1)) = 1/((x-1)*(x+1))"),
+        String::from("1/((x-1)(x+1)) = 1/((x-1)(x+1))"),
         String::from("x"),
     );
     assert_eq!(
@@ -178,4 +184,13 @@ fn invalid_parenthesis() {
         solve_equation::solve_equation(&input),
         Err(ParenthesisError)
     );
+}
+
+#[test]
+fn unknown_exceptions_in_domain() {
+    let input = EquationInput::new(
+        String::from("1/(x*x*x+1) = 1/(x*x*x+1) + 1"),
+        String::from("x"),
+    );
+    assert_eq!(solve_equation::solve_equation(&input), Ok(Unsolvable))
 }

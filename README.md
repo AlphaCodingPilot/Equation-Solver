@@ -5,7 +5,7 @@ A equation solver for the terminal
 
 ```
 Enter equation
--6 + 9/x = x * 3
+-6 + 9/x = 3x
 Solve for x
 x = {1, -3}
 ```
@@ -13,12 +13,12 @@ x = {1, -3}
 ## Installation
 Clone the repository:
 ```
-git clone https://github.com/AlphaCodingPilot/equation-solver.git
+git clone https://github.com/AlphaCodingPilot/Equation-Solver.git
 ```
 ## Usage
-1. Run main.rs
-2. Enter an equation in the terminal
-3. Specify the variable name you want to solve for after 'Solve for '
+1. Run the main.rs file in the src directory.
+2. Enter an equation in the terminal.
+3. Specify the variable you want to solve for after 'Solve for '
 
 ## Contributing
-Pull requests and issues are welcome
+Pull requests are welcome. Before doing major changes please open a pull request first to discus it.

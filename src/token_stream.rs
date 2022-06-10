@@ -20,7 +20,7 @@ impl EquationInput {
         }
     }
 
-    pub fn elements(&self) -> Result<Vec<EquationElement>, EquationError> {
+    pub fn token_stream(&self) -> Result<Vec<EquationElement>, EquationError> {
         if self.equation.is_empty() {
             return Err(EmptyEquation);
         }
@@ -30,10 +30,12 @@ impl EquationInput {
 
         let mut elements = Vec::new();
         let mut current_value = String::new();
+        let mut number = true;
         for element in self.equation.chars() {
             let element = match element {
                 ' ' => {
                     add_value_to_elements(&mut elements, &mut current_value, &self.variable_name)?;
+                    number = true;
                     continue;
                 }
                 '+' => Operation(AdditiveOperation(Addition)),
@@ -43,12 +45,28 @@ impl EquationInput {
                 '=' => Separator,
                 '(' => OpeningParenthesis,
                 ')' => ClosingParenthesis,
+                ',' => {
+                    current_value.push('.');
+                    continue;
+                }
                 _ => {
+                    if current_value.is_empty() && !element.is_digit(10) {
+                        number = false;
+                    }
+                    if number && !current_value.is_empty() && !element.is_digit(10) {
+                        add_value_to_elements(
+                            &mut elements,
+                            &mut current_value,
+                            &self.variable_name,
+                        )?;
+                        number = false;
+                    }
                     current_value.push(element);
                     continue;
                 }
             };
             add_value_to_elements(&mut elements, &mut current_value, &self.variable_name)?;
+            number = true;
             elements.push(element);
         }
         add_value_to_elements(&mut elements, &mut current_value, &self.variable_name)?;

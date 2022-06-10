@@ -6,24 +6,25 @@ use std::process;
 mod equation;
 mod equation_element;
 mod equation_error;
-mod equation_input;
 mod equation_result;
 mod equation_side;
+mod exceptions_in_domain;
 mod nested_term;
 mod solve_equation;
 mod term;
+mod token_stream;
 
 #[cfg(test)]
 mod tests;
 
 use equation_error::EquationError::{self, *};
-use equation_input::EquationInput;
 use equation_result::EquationResult::{self, *};
+use token_stream::EquationInput;
 
 fn main() {
     let input = read_input();
     let equation_result = solve_equation::solve_equation(&input);
-    output_result(equation_result, input.variable_name);
+    output(equation_result, input.variable_name);
 }
 
 fn read_input() -> EquationInput {
@@ -47,7 +48,7 @@ fn read_input() -> EquationInput {
     EquationInput::new(equation, variable_name)
 }
 
-fn output_result(result: Result<EquationResult, EquationError>, variable_name: String) {
+fn output(result: Result<EquationResult, EquationError>, variable_name: String) {
     let output = match result {
         Ok(result) => result_output(result, variable_name),
         Err(error) => {
@@ -73,10 +74,10 @@ fn result_output(result: EquationResult, variable_name: String) -> String {
                 .join(", ")
         ),
         Unsolvable => format!("{}", "The equation has no solutions".yellow()),
-        InfiniteSolutions { exceptions } => match exceptions == Vec::new() {
-            true => format!("{variable_name} = {{ℝ}}"),
+        InfiniteSolutions { exceptions } => match exceptions.is_empty() {
+            true => format!("{variable_name} = R"),
             false => format!(
-                "{variable_name} = {{ℝ}}/{{{}}}",
+                "{variable_name} = R\\{{{}}}",
                 exceptions
                     .iter()
                     .map(|exception| exception.to_string())
@@ -95,12 +96,13 @@ fn error_output(error: EquationError) -> String {
         ),
         EmptyEquation => String::from("Empty equation"),
         EmptyVariableName => String::from("Variable name was not specified"),
+        NoOccurrencesOfVariable => String::from("Variable does not occur in the equation"),
         MissingOperation => String::from("Equation is missing an operation"),
         ParenthesisError => String::from("Equation contains invalid parenthesis"),
         InvalidSeparator => String::from("Equation contains invalid equals sign"),
         InvalidSeparatorAmount => String::from("An equation must contain exactly one equals sign"),
         InvalidOperation => String::from("Equation contains invalid operation"),
         DivisionByZero => String::from("Division by zero is undefined"),
-        ComplexNumbers => String::from("ComplexNumbers are not supported"),
+        ComplexNumbers => String::from("Complex numbers are not supported"),
     }
 }

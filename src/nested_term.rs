@@ -1,5 +1,3 @@
-use ordered_float::OrderedFloat;
-
 use crate::equation_element::{
     AdditiveOperationType::{self, *},
     EquationElement::{self, *},
@@ -39,36 +37,36 @@ impl NestedTerm {
 
         self.term
             .exceptions_in_domain
-            .extend(self.multiplier.exceptions_in_domain.iter());
+            .extend(&self.multiplier.exceptions_in_domain);
+
         self.multiplier = Term::new_multiplier();
     }
 
-    pub fn multiply_value(&mut self, value: &ValueType) -> Result<(), EquationError> {
+    pub fn multiply_value(
+        &mut self,
+        value: &ValueType,
+        previous_element: &EquationElement,
+    ) -> Result<(), EquationError> {
         match value {
-            Constant(constant) => match self.multiplicative_operation {
-                Multiplication => {
-                    for (_, coefficient) in self.multiplier.addends.iter_mut() {
-                        *coefficient *= constant
-                    }
+            Constant(_) => {
+                if let Value(_) | ClosingParenthesis = previous_element {
+                    return Err(MissingOperation);
                 }
-                Division => {
-                    if *constant == 0.0 {
-                        return Err(DivisionByZero);
-                    }
-                    for (_, coefficient) in self.multiplier.addends.iter_mut() {
-                        *coefficient /= constant
-                    }
+            }
+            Variable => {
+                if let Value(Variable) = previous_element {
+                    return Err(MissingOperation);
                 }
-            },
-            Variable => match self.multiplicative_operation {
-                Multiplication => self.multiplier.increase_exponents(1),
-                Division => {
-                    self.multiplier.increase_exponents(-1);
-                    self.multiplier
-                        .exceptions_in_domain
-                        .insert(OrderedFloat(0.0));
+
+                if let Value(Constant(_)) | ClosingParenthesis = previous_element {
+                    self.multiplicative_operation = Multiplication;
                 }
-            },
+            }
+        }
+
+        match self.multiplicative_operation {
+            Multiplication => self.multiplier.multiply_value(value),
+            Division => self.multiplier.divide_value(value)?,
         }
         Ok(())
     }
@@ -80,15 +78,16 @@ impl NestedTerm {
     ) -> Result<(), EquationError> {
         match self.multiplicative_operation {
             Multiplication => {
-                self.multiplier.multiply_term(&term);
+                self.multiplier.multiply_term(term);
             }
             Division => {
-                self.term.multiply_term(term);
-                other_equation_side.multiplier.multiply_term(term);
-
-                self.multiplier.add_exceptions_in_domain_of_divisor(term)?;
+                self.multiplier
+                    .divide_term(term, &mut self.term, other_equation_side)?;
             }
         }
+        self.multiplier
+            .exceptions_in_domain
+            .extend(&term.exceptions_in_domain);
         Ok(())
     }
 

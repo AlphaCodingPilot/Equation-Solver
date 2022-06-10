@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum EquationElement {
     Value(ValueType),
     Operation(OperationType),
@@ -7,25 +7,25 @@ pub enum EquationElement {
     ClosingParenthesis,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum ValueType {
     Constant(f64),
     Variable,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum OperationType {
     AdditiveOperation(AdditiveOperationType),
     MultiplicativeOperation(MultiplicativeOperationType),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum AdditiveOperationType {
     Addition,
     Subtraction,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum MultiplicativeOperationType {
     Multiplication,
     Division,

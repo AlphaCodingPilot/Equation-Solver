@@ -2,6 +2,7 @@
 pub enum EquationError {
     EmptyEquation,
     EmptyVariableName,
+    NoOccurrencesOfVariable,
     InvalidElement(String),
     MissingOperation,
     ParenthesisError,
