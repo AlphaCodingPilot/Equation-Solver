@@ -26,7 +26,7 @@ impl NestedTerm {
         }
     }
 
-    pub fn push_multiplier(&mut self) {
+    pub fn push_multiplier(&mut self, equation_side: &EquationSide) {
         for (exponent, other_coefficient) in self.multiplier.addends.iter() {
             let coefficient = self.term.addends.entry(*exponent).or_insert(0.0);
             match self.additive_operation {
@@ -40,6 +40,8 @@ impl NestedTerm {
             .extend(&self.multiplier.exceptions_in_domain);
 
         self.multiplier = Term::new_multiplier();
+        self.multiplier.multiply_term(&equation_side.multiplier);
+        self.multiplicative_operation = Multiplication;
     }
 
     pub fn multiply_value(
@@ -74,6 +76,7 @@ impl NestedTerm {
     pub fn merge_term(
         &mut self,
         term: &Term,
+        equation_side: &mut EquationSide,
         other_equation_side: &mut EquationSide,
     ) -> Result<(), EquationError> {
         match self.multiplicative_operation {
@@ -81,8 +84,12 @@ impl NestedTerm {
                 self.multiplier.multiply_term(term);
             }
             Division => {
-                self.multiplier
-                    .divide_term(term, &mut self.term, other_equation_side)?;
+                self.multiplier.divide_term(
+                    term,
+                    &mut self.term,
+                    equation_side,
+                    other_equation_side,
+                )?;
             }
         }
         self.multiplier
@@ -94,16 +101,16 @@ impl NestedTerm {
     pub fn set_operation(
         &mut self,
         operation: OperationType,
+        equation_side: &EquationSide,
         previous_element: &EquationElement,
     ) -> Result<(), EquationError> {
         match operation {
             AdditiveOperation(additive_operation) => {
                 if let Operation(_) = *previous_element {
-                    return Err(MissingOperation);
+                    return Err(InvalidOperation);
                 }
                 if let Value(_) | ClosingParenthesis = *previous_element {
-                    self.push_multiplier();
-                    self.multiplicative_operation = Multiplication;
+                    self.push_multiplier(equation_side);
                 }
                 self.additive_operation = additive_operation;
             }
@@ -116,5 +123,9 @@ impl NestedTerm {
             }
         }
         Ok(())
+    }
+
+    pub fn set_multiplicative_operation(&mut self, operation: MultiplicativeOperationType) {
+        self.multiplicative_operation = operation;
     }
 }

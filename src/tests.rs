@@ -3,194 +3,107 @@ use crate::equation_result::EquationResult::*;
 use crate::solve_equation;
 use crate::token_stream::EquationInput;
 
-#[test]
-fn empty_input() {
-    let input = EquationInput::new(String::new(), String::from("x"));
-    assert_eq!(solve_equation::solve_equation(&input), Err(EmptyEquation));
+macro_rules! test_solutions {
+    ($equation:expr) => {
+        let input = EquationInput::new(String::from($equation), String::from("x"));
+        assert_eq!(solve_equation::solve_equation(&input), Ok(Unsolvable));
+    };
+    ($equation:expr, $($solution:expr),*) => {
+        let input = EquationInput::new(String::from($equation), String::from("x"));
+        let mut solutions = Vec::new();
+        $(
+            solutions.push($solution as f64);
+        )*
+        assert_eq!(solve_equation::solve_equation(&input), Ok(Solutions(solutions)));
+    };
+}
+
+macro_rules! test_error {
+    ($equation:expr, $error:expr) => {
+        let input = EquationInput::new(String::from($equation), String::from("x"));
+        assert_eq!(solve_equation::solve_equation(&input), Err($error));
+    };
+    ($equation:expr, $variable_name:expr, $error:expr) => {
+        let input = EquationInput::new(String::from($equation), String::from($variable_name));
+        assert_eq!(solve_equation::solve_equation(&input), Err($error));
+    };
+}
+
+macro_rules! test_exceptions {
+    ($equation:expr) => {
+        let input = EquationInput::new(String::from($equation), String::from("x"));
+        assert_eq!(solve_equation::solve_equation(&input), Ok(InfiniteSolutions { exceptions: Vec::new() }));
+    };
+    ($equation:expr, $($exception:expr),*) => {
+        let input = EquationInput::new(String::from($equation), String::from("x"));
+        let mut exceptions = Vec::new();
+        $(
+            exceptions.push($exception as f64);
+        )*
+        assert_eq!(solve_equation::solve_equation(&input), Ok(InfiniteSolutions { exceptions }));
+    };
 }
 
 #[test]
-fn empty_variable_name() {
-    let input = EquationInput::new(String::from("x + 1 = 2"), String::new());
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Err(EmptyVariableName)
-    );
-}
-
-#[test]
-fn simple_equation() {
-    let input = EquationInput::new(String::from("x + 1 = 2"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![1.0]))
-    );
+fn equation_error() {
+    test_error!("", EmptyEquation);
+    test_error!("x + 1 = 2", "", EmptyVariableName);
+    test_error!("1 + 2 = 3", NoOccurrencesOfVariable);
+    test_error!("1 + 3some_element = x", InvalidElement(String::from("some_element")));
+    test_error!("3 + x 5 = 2", MissingOperation);
+    test_error!("3(x+(1+2) = 4", ParenthesisError);
+    test_error!("3 += x", InvalidSeparator);
+    test_error!("3 = 1 + 2 = x", InvalidSeparatorAmount);
+    test_error!("5 + * x = 8", InvalidOperation);
+    test_error!("x = 1/0", DivisionByZero);
+    test_error!("2x*x*x + 4 = 0", TooHighDegree { max_degree: 2 });
+    test_error!("x*x = -1", ComplexNumbers);
 }
 
 #[test]
 fn linear_equation() {
-    let input = EquationInput::new(String::from("2*x = 6"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![3.0]))
-    );
+    test_solutions!("2x = 6", 3);
+    test_solutions!("x + 1 = 2", 1);
+    test_solutions!("2x(2+3)(5-4) = 2(20+5)", 5);
+    test_solutions!("1/x + 3/(x*x) = 5/(x*x)", 2);
+    test_solutions!("5x - 4x - 3 = -x + 5", 4);
 }
 
 #[test]
 fn unsolvable_equation() {
-    let input = EquationInput::new(String::from("x = x + 1"), String::from("x"));
-    assert_eq!(solve_equation::solve_equation(&input), Ok(Unsolvable));
+    test_solutions!("x = x + 1");
+    test_solutions!("1/(x*x*x+1) = 1/(x*x*x+1) + 1");
 }
 
 #[test]
 fn infinite_solutions() {
-    let input = EquationInput::new(String::from("x + 3 = x + 3"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(InfiniteSolutions {
-            exceptions: Vec::new()
-        })
-    );
-}
-
-#[test]
-fn infinite_solutions_with_one_exception() {
-    let input = EquationInput::new(String::from("x = 1/(1/x)"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(InfiniteSolutions {
-            exceptions: vec![0.0]
-        })
-    );
+    test_exceptions!("x + 3 = x + 3");
+    test_exceptions!("x = 1/(1/x)", 0);
+    test_exceptions!("1/((x-1)(x+1)) = 1/((x-1)(x+1))", 1, -1);
 }
 
 #[test]
 fn different_variable_name() {
-    let input = EquationInput::new(String::from("2unknown + 4 = 6"), String::from("unknown"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![1.0]))
-    );
-}
-
-#[test]
-fn multiplication() {
-    let input = EquationInput::new(String::from("2x(2+3)(5-4) = 2(20+5)"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![5.0]))
-    )
-}
-
-#[test]
-fn different_spaces_in_input() {
-    let input = EquationInput::new(String::from("x+2 +  3=7"), String::from("x"));
+    let input = EquationInput::new(String::from("2unknown + 4 = 8"), String::from("unknown"));
     assert_eq!(
         solve_equation::solve_equation(&input),
         Ok(Solutions(vec![2.0]))
-    )
-}
-
-#[test]
-fn invalid_equation() {
-    let input = EquationInput::new(String::from("x + * 1 = 2"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Err(InvalidOperation)
     );
 }
 
 #[test]
 fn quadratic_equation() {
-    let input = EquationInput::new(String::from("3x*x + 6x = 9"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![1.0, -3.0]))
-    );
+    test_solutions!("3x*x + 6x = 9", 1, -3);
 }
 
 #[test]
 fn factorized_polynomial() {
-    let input = EquationInput::new(String::from("2x*x = 6x"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![0.0, 3.0]))
-    );
-}
-
-#[test]
-fn factorized_polynomial_with_one_solution() {
-    let input = EquationInput::new(String::from("2x*x = 0"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![0.0]))
-    );
-}
-
-#[test]
-fn fractions() {
-    let input = EquationInput::new(String::from("1/x + 3/(x*x) = 5/(x*x)"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![2.0]))
-    );
-}
-
-#[test]
-fn subtraction_of_products() {
-    let input = EquationInput::new(String::from("5x - 4x - 3 = - x + 5"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![4.0]))
-    );
+    test_solutions!("2x*x = 6x", 0, 3);
+    test_solutions!("2*x*x = 0", 0);
 }
 
 #[test]
 fn order_of_operations() {
-    let input = EquationInput::new(String::from("1 + 2 * 3 = x"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![7.0]))
-    );
-}
-
-#[test]
-fn order_of_operations_with_parenthesis() {
-    let input = EquationInput::new(String::from("x(1 + 2) = 9"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(Solutions(vec![3.0]))
-    );
-}
-
-#[test]
-fn domain_of_division() {
-    let input = EquationInput::new(
-        String::from("1/((x-1)(x+1)) = 1/((x-1)(x+1))"),
-        String::from("x"),
-    );
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Ok(InfiniteSolutions {
-            exceptions: vec![1.0, -1.0]
-        })
-    )
-}
-
-#[test]
-fn invalid_parenthesis() {
-    let input = EquationInput::new(String::from("x + (x * (2*3) = 12"), String::from("x"));
-    assert_eq!(
-        solve_equation::solve_equation(&input),
-        Err(ParenthesisError)
-    );
-}
-
-#[test]
-fn unknown_exceptions_in_domain() {
-    let input = EquationInput::new(
-        String::from("1/(x*x*x+1) = 1/(x*x*x+1) + 1"),
-        String::from("x"),
-    );
-    assert_eq!(solve_equation::solve_equation(&input), Ok(Unsolvable))
+    test_solutions!("1 + 2*3 = x", 7);
+    test_solutions!("x(1 + 2) = 9", 3);
 }

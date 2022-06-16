@@ -45,7 +45,7 @@ impl EquationInput {
                 '=' => Separator,
                 '(' => OpeningParenthesis,
                 ')' => ClosingParenthesis,
-                ',' => {
+                '.' | ',' => {
                     current_value.push('.');
                     continue;
                 }
@@ -53,7 +53,10 @@ impl EquationInput {
                     if current_value.is_empty() && !element.is_digit(10) {
                         number = false;
                     }
-                    if number && !current_value.is_empty() && !element.is_digit(10) {
+                    if number
+                        && !current_value.is_empty()
+                        && !element.is_digit(10)
+                    {
                         add_value_to_elements(
                             &mut elements,
                             &mut current_value,

@@ -69,7 +69,7 @@ fn result_output(result: EquationResult, variable_name: String) -> String {
             "{variable_name} = {{{}}}",
             values
                 .iter()
-                .map(|value| value.to_string())
+                .map(ToString::to_string)
                 .collect::<Vec<String>>()
                 .join(", ")
         ),
@@ -80,7 +80,7 @@ fn result_output(result: EquationResult, variable_name: String) -> String {
                 "{variable_name} = R\\{{{}}}",
                 exceptions
                     .iter()
-                    .map(|exception| exception.to_string())
+                    .map(ToString::to_string)
                     .collect::<Vec<String>>()
                     .join(", ")
             ),

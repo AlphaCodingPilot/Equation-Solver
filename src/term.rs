@@ -173,6 +173,7 @@ impl Term {
         &mut self,
         other: &Term,
         nested_term: &mut Term,
+        equation_side: &mut EquationSide,
         other_equation_side: &mut EquationSide,
     ) -> Result<(), EquationError> {
         self.add_exceptions_in_domain_of_divisor(other)?;
@@ -188,6 +189,7 @@ impl Term {
             return Ok(());
         }
         nested_term.multiply_term(other);
+        equation_side.multiplier.multiply_term(other);
         other_equation_side.multiplier.multiply_term(other);
         Ok(())
     }
