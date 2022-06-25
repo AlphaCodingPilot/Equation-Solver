@@ -26,7 +26,7 @@ impl NestedTerm {
         }
     }
 
-    pub fn push_multiplier(&mut self, equation_side: &EquationSide) {
+    pub fn push_multiplier(&mut self, equation_side_multiplier: &Term) {
         for (exponent, other_coefficient) in self.multiplier.addends.iter() {
             let coefficient = self.term.addends.entry(*exponent).or_insert(0.0);
             match self.additive_operation {
@@ -40,7 +40,7 @@ impl NestedTerm {
             .extend(&self.multiplier.exceptions_in_domain);
 
         self.multiplier = Term::new_multiplier();
-        self.multiplier.multiply_term(&equation_side.multiplier);
+        self.multiplier.multiply_term(&equation_side_multiplier);
         self.multiplicative_operation = Multiplication;
     }
 
@@ -50,17 +50,19 @@ impl NestedTerm {
         previous_element: &EquationElement,
     ) -> Result<(), EquationError> {
         match value {
-            Constant(_) => {
+            Number(_) => {
                 if let Value(_) | ClosingParenthesis = previous_element {
                     return Err(MissingOperation);
                 }
             }
-            Variable => {
-                if let Value(Variable) = previous_element {
-                    return Err(MissingOperation);
+            Symbol(symbol) => {
+                if let Value(Symbol(previous_symbol)) = previous_element {
+                    if symbol == previous_symbol {
+                        return Err(MissingOperation);
+                    }
                 }
 
-                if let Value(Constant(_)) | ClosingParenthesis = previous_element {
+                if let Value(Number(_)) | ClosingParenthesis = previous_element {
                     self.multiplicative_operation = Multiplication;
                 }
             }
@@ -76,7 +78,7 @@ impl NestedTerm {
     pub fn merge_term(
         &mut self,
         term: &Term,
-        equation_side: &mut EquationSide,
+        equation_side_multiplier: &mut Term,
         other_equation_side: &mut EquationSide,
     ) -> Result<(), EquationError> {
         match self.multiplicative_operation {
@@ -87,7 +89,7 @@ impl NestedTerm {
                 self.multiplier.divide_term(
                     term,
                     &mut self.term,
-                    equation_side,
+                    equation_side_multiplier,
                     other_equation_side,
                 )?;
             }
@@ -101,7 +103,7 @@ impl NestedTerm {
     pub fn set_operation(
         &mut self,
         operation: OperationType,
-        equation_side: &EquationSide,
+        equation_side_multiplier: &Term,
         previous_element: &EquationElement,
     ) -> Result<(), EquationError> {
         match operation {
@@ -110,7 +112,7 @@ impl NestedTerm {
                     return Err(InvalidOperation);
                 }
                 if let Value(_) | ClosingParenthesis = *previous_element {
-                    self.push_multiplier(equation_side);
+                    self.push_multiplier(equation_side_multiplier);
                 }
                 self.additive_operation = additive_operation;
             }

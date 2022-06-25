@@ -9,8 +9,14 @@ pub enum EquationElement {
 
 #[derive(Clone, PartialEq)]
 pub enum ValueType {
-    Constant(f64),
+    Number(f64),
+    Symbol(SymbolType),
+}
+
+#[derive(Clone, PartialEq)]
+pub enum SymbolType {
     Variable,
+    Constant(f64),
 }
 
 #[derive(Clone, PartialEq)]

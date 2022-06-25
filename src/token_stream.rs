@@ -3,9 +3,13 @@ use crate::equation_element::{
     EquationElement::{self, *},
     MultiplicativeOperationType::*,
     OperationType::*,
+    SymbolType::*,
     ValueType::*,
 };
 use crate::equation_error::EquationError::{self, *};
+
+const PI: f64 = 3.141592653589793;
+const E: f64 = 2.718281828459045;
 
 pub struct EquationInput {
     equation: String,
@@ -49,14 +53,12 @@ impl EquationInput {
                     current_value.push('.');
                     continue;
                 }
+                'π' => Value(Symbol(Constant(PI))),
                 _ => {
                     if current_value.is_empty() && !element.is_digit(10) {
                         number = false;
                     }
-                    if number
-                        && !current_value.is_empty()
-                        && !element.is_digit(10)
-                    {
+                    if number && !current_value.is_empty() && !element.is_digit(10) {
                         add_value_to_elements(
                             &mut elements,
                             &mut current_value,
@@ -85,14 +87,16 @@ fn add_value_to_elements(
     if value.is_empty() {
         return Ok(());
     }
-    if &*value == "i" {
+    if &**value == "i" {
         return Err(ComplexNumbers);
     }
 
-    let element = Value(match *value == variable_name {
-        true => Variable,
-        false => match value.parse::<f64>() {
-            Ok(value) => Constant(value),
+    let element = Value(match &**value {
+        _ if &**value == variable_name => Symbol(Variable),
+        "pi" => Symbol(Constant(PI)),
+        "e" => Symbol(Constant(E)),
+        _ => match value.parse::<f64>() {
+            Ok(value) => Number(value),
             Err(_) => {
                 return Err(InvalidElement(value.to_owned()));
             }

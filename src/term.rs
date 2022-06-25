@@ -2,7 +2,10 @@ use ordered_float::OrderedFloat;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::equation_element::ValueType::{self, *};
+use crate::equation_element::{
+    SymbolType::*,
+    ValueType::{self, *},
+};
 use crate::equation_error::EquationError::{self, *};
 use crate::equation_result::EquationResult::{self, *};
 use crate::equation_side::EquationSide;
@@ -10,7 +13,7 @@ use crate::exceptions_in_domain::ExceptionsInDomain::{self, *};
 
 const MAX_DEGREE: i32 = 2;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Term {
     pub addends: HashMap<i32, f64>,
     pub exceptions_in_domain: ExceptionsInDomain,
@@ -114,18 +117,24 @@ impl Term {
 
     pub fn multiply_value(&mut self, value: &ValueType) {
         match value {
-            Constant(constant) => self.multiply_constant(constant),
-            Variable => self.increase_exponents(1),
+            Number(constant) => self.multiply_constant(constant),
+            Symbol(symbol) => match symbol {
+                Variable => self.increase_exponents(1),
+                Constant(constant) => self.multiply_constant(constant),
+            },
         }
     }
 
     pub fn divide_value(&mut self, value: &ValueType) -> Result<(), EquationError> {
         match value {
-            Constant(constant) => self.divide_constant(constant)?,
-            Variable => {
-                self.increase_exponents(-1);
-                self.exceptions_in_domain.insert_zero();
-            }
+            Number(constant) => self.divide_constant(constant)?,
+            Symbol(symbol) => match symbol {
+                Variable => {
+                    self.increase_exponents(-1);
+                    self.exceptions_in_domain.insert_zero();
+                }
+                Constant(constant) => self.divide_constant(constant)?,
+            },
         }
         Ok(())
     }
@@ -173,7 +182,7 @@ impl Term {
         &mut self,
         other: &Term,
         nested_term: &mut Term,
-        equation_side: &mut EquationSide,
+        equation_side_multiplier: &mut Term,
         other_equation_side: &mut EquationSide,
     ) -> Result<(), EquationError> {
         self.add_exceptions_in_domain_of_divisor(other)?;
@@ -189,7 +198,7 @@ impl Term {
             return Ok(());
         }
         nested_term.multiply_term(other);
-        equation_side.multiplier.multiply_term(other);
+        equation_side_multiplier.multiply_term(other);
         other_equation_side.multiplier.multiply_term(other);
         Ok(())
     }

@@ -5,7 +5,7 @@ use crate::equation_error::EquationError;
 
 use ExceptionsInDomain::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ExceptionsInDomain {
     Known(HashSet<OrderedFloat<f64>>),
     Unknown { zero_is_valid: bool },
