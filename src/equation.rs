@@ -104,6 +104,7 @@ impl Equation {
             current_equation_side.multiplier = Term::new_multiplier();
             other_equation_side.multiplier = Term::new_multiplier();
         }
+
         current_equation_side.push_multiplier();
         other_equation_side.push_multiplier();
 

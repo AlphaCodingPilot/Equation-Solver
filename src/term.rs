@@ -40,11 +40,15 @@ impl Term {
         let mut normalized_term = self.clone();
         normalized_term.increase_exponents(-lowest_exponent);
 
-        let degree = match normalized_term.degree() {
+        let degree = normalized_term.degree();
+        let degree = match degree {
             None => {
-                let exceptions = self.exceptions_in_domain.unwrap_or(TooHighDegree {
-                    max_degree: MAX_DEGREE,
-                })?;
+                let exceptions = self
+                    .exceptions_in_domain
+                    .unwrap_or(|degree| TooHighDegree {
+                        degree,
+                        max_degree: MAX_DEGREE,
+                    })?;
                 let mut exceptions = exceptions.iter().collect::<Vec<&OrderedFloat<f64>>>();
 
                 exceptions.sort();
@@ -68,13 +72,17 @@ impl Term {
 
         if degree > MAX_DEGREE {
             return Err(TooHighDegree {
+                degree,
                 max_degree: MAX_DEGREE,
             });
         }
 
-        let exceptions_in_domain = self.exceptions_in_domain.unwrap_or(TooHighDegree {
-            max_degree: MAX_DEGREE,
-        })?;
+        let exceptions_in_domain = self
+            .exceptions_in_domain
+            .unwrap_or(|degree| TooHighDegree {
+                degree,
+                max_degree: MAX_DEGREE,
+            })?;
 
         let mut solutions = Vec::new();
         if factorized_variable && !exceptions_in_domain.contains(&OrderedFloat(0.0)) {
@@ -213,10 +221,13 @@ impl Term {
                     Ok(Solutions(values)) => values.into_iter().map(OrderedFloat).collect(),
                     Ok(Unsolvable) => HashSet::new(),
                     Ok(InfiniteSolutions { .. }) => return Err(DivisionByZero),
-                    Err(TooHighDegree { .. }) => {
+                    Err(TooHighDegree { degree, .. }) => {
                         let zero_is_valid = !exceptions.contains(&OrderedFloat(0.0))
                             && !divisor.zero_is_a_solution();
-                        self.exceptions_in_domain = Unknown { zero_is_valid };
+                        self.exceptions_in_domain = Unknown {
+                            zero_is_valid,
+                            degree,
+                        };
                         return Ok(());
                     }
                     Err(error) => return Err(error),
@@ -224,8 +235,8 @@ impl Term {
 
                 exceptions.extend(exceptions_in_domain.iter());
             }
-            Unknown { zero_is_valid } => {
-                if divisor.zero_is_a_solution() {
+            Unknown { zero_is_valid, .. } => {
+                if !divisor.zero_is_a_solution() {
                     *zero_is_valid = false;
                 }
             }

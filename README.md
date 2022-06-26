@@ -1,5 +1,5 @@
 # Equation Solver
-A equation solver for the terminal
+A equation solver as an API or usable in the terminal
 
 ![GitHub last commit](https://img.shields.io/github/last-commit/AlphaCodingPilot/equation-solver) ![GitHub issues](https://img.shields.io/github/issues-raw/AlphaCodingPilot/equation-solver) ![Lines of code](https://img.shields.io/tokei/lines/github/AlphaCodingPilot/equation-solver?label=lines%20of%20code)
 

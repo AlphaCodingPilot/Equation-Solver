@@ -12,7 +12,7 @@ pub enum EquationError {
     InvalidSeparatorAmount,
     InvalidOperation,
     DivisionByZero,
-    TooHighDegree { max_degree: i32 },
+    TooHighDegree { degree: i32, max_degree: i32 },
     ComplexNumbers,
 }
 
@@ -20,8 +20,8 @@ impl EquationError {
     pub fn log_message(&self) -> String {
         let message = match self {
             InvalidElement(element) => format!("Equation contains an invalid element: {element}"),
-            TooHighDegree { max_degree } => format!(
-                "Polynomial equations with a degree greater than {max_degree} are not supported"
+            TooHighDegree { degree, max_degree } => format!(
+                "The equation has a degree of {degree} but equations with a degree greater than {max_degree} are not supported"
             ),
             EmptyEquation => String::from("Empty equation"),
             EmptyVariableName => String::from("Variable name was not specified"),

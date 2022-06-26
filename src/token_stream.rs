@@ -1,3 +1,6 @@
+use std::f64::consts::E;
+use std::f64::consts::PI;
+
 use crate::equation_element::{
     AdditiveOperationType::*,
     EquationElement::{self, *},
@@ -7,9 +10,6 @@ use crate::equation_element::{
     ValueType::*,
 };
 use crate::equation_error::EquationError::{self, *};
-
-const PI: f64 = 3.141592653589793;
-const E: f64 = 2.718281828459045;
 
 pub struct EquationInput {
     equation: String,

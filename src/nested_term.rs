@@ -40,7 +40,7 @@ impl NestedTerm {
             .extend(&self.multiplier.exceptions_in_domain);
 
         self.multiplier = Term::new_multiplier();
-        self.multiplier.multiply_term(&equation_side_multiplier);
+        self.multiplier.multiply_term(equation_side_multiplier);
         self.multiplicative_operation = Multiplication;
     }
 
